@@ -267,7 +267,8 @@ def configure():
         sys.exit(1) 
     return conf 
 
-if __name__ == '__main__':
+
+def main():
     parser = argparse.ArgumentParser(description='View and register Dispel4Py objects in a registry.')
     parser.add_argument('command', help='command to execute, one of: list, view, register')
     parser.add_argument('args', nargs='*', help='command arguments')
@@ -288,5 +289,6 @@ if __name__ == '__main__':
             sys.stderr.write("Unknown command: %s\n" % command)
             usage()
             sys.exit(2)
-    
-    
+
+if __name__ == '__main__':
+    main()

@@ -15,18 +15,24 @@ setup(
     version="0.0.1",
     author="The University of Edinburgh",
     author_email="a.krause@epcc.ed.ac.uk",
+    url="https://github.com/akrause2014/dispel4py",
+    license="Apache 2",
     description=(
         "Dispel4py is a Python library used to describe abstract workflows \
         for distributed data-intensive applications."),
-    license = "Apache 2",
-    keywords = "dispel4py dispel workflows processing elements",
-    url = "https://github.com/akrause2014/dispel4py",
-    packages=['dispel4py', 'dispel4py.seismo', 'dispel4py.storm',
-              'dispel4py.test', 'dispel4py.test.graph_testing'],
     long_description=read('README.md'),
+    keywords="dispel4py dispel workflows processing elements",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Topic :: Utilities",
         "License :: OSI Approved :: Apache 2 License",
     ],
+    packages=['dispel4py', 'dispel4py.seismo', 'dispel4py.storm',
+              'dispel4py.test', 'dispel4py.test.graph_testing'],
+    install_requires=['networkx', 'requests'],
+    entry_points={
+        'console_scripts': [
+            'idispel4py = dispel4py.dispel4py_client:main',
+        ]
+    },
 )
