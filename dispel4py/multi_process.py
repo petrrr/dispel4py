@@ -12,6 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+'''
+Enactment of dispel4py graphs using multiprocessing.
+'''
+
 import copy
 import json
 import multiprocessing
@@ -21,7 +25,7 @@ import types
 import traceback
 
 from dispel4py import simple_process, workflow_graph
-from dispel4py.GenericPE import GROUPING
+from dispel4py.core import GROUPING
 from dispel4py.utils import make_hash
 
 class QueueWriter(object):

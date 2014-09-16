@@ -13,5 +13,16 @@
 # limitations under the License.
 
 '''
-Tools for the enactment of Dispel4Py graphs as Storm topologies.
+Counts words produced by a WordProducer.
 '''
+
+from dispel4py.workflow_graph import WorkflowGraph
+
+from dispel4py.examples.graph_testing.testing_PEs import RandomWordProducer, WordCounter
+
+words = RandomWordProducer()
+words.numprocesses=1
+counter = WordCounter()
+counter.numprocesses=3
+graph = WorkflowGraph()
+graph.connect(words, 'output', counter, 'input')

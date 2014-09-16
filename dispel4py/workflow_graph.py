@@ -12,11 +12,15 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+'''
+The dispel4py workflow graph.
+'''
+
 import networkx as nx
 import inspect
 import sys
 
-from GenericPE import GenericPE 
+from dispel4py.core import GenericPE 
 
 class WorkflowNode:
     '''
@@ -39,9 +43,6 @@ class WorkflowNode:
         # TODO: This may not be accurate - check.
         if inspect.isroutine(o): # it's a 'function'
             self.nodeType = self.WORKFLOW_NODE_FN
-            annotations = extractAnnotations(o)
-            self.inputs = annotations['params']
-            self.retType = annotations['return']
         elif isinstance(o, GenericPE):
             # TODO Perhaps we should have a similar arrangement for annotating PEs and their ins/outs 
             o.id = o.name + str(WorkflowNode.node_counter)
@@ -61,7 +62,7 @@ class WorkflowNode:
             except AttributeError:
                 pass
         else:
-            sys.stderr.write('Error: Unknown type of object passed as a Workflow Node: ' + str(type(o)))
+            sys.stderr.write('Error: Unknown type of object passed as a Workflow Node: %s\n' % type(o))
             raise Exception("Unknown type of object passed as a Workflow Node: %s" % type(o))
             # sys.exit(1) # too harsh?
             
@@ -123,7 +124,8 @@ class WorkflowGraph(object):
                 'ALL_CONNECTIONS' : [(fromConnection, toConnection)]})
                     
     def getContainedObjects(self):
-        return [ node.getContainedObject() for node in self.graph.nodes() ]
+        nodes = [ node.getContainedObject() for node in self.graph.nodes() ]
+        return sorted(nodes, key=lambda x: x.id)
 
     def propagate_types(self):
         '''
@@ -156,11 +158,14 @@ class WorkflowGraph(object):
         Subgraphs contained within composite PEs are added to the top level workflow.
         '''
         hasComposites = True
+        toRemove = set()
         while hasComposites:
             hasComposites = False
+            toRemove = set()
             for node in self.graph.nodes():
                 if node.nodeType == WorkflowNode.WORKFLOW_NODE_CP:
                     hasComposites = True
+                    toRemove.add(node)
                     wfGraph = node.getContainedObject()
                     subgraph = wfGraph.graph
                     self.graph.add_nodes_from(subgraph.nodes(data=True))
@@ -181,40 +186,37 @@ class WorkflowGraph(object):
                             self.connect(fromPE, fromConnection, toPE, toConnection)
                     for outputname in wfGraph.outputmappings:
                         fromPE, fromConnection = wfGraph.outputmappings[outputname]
-                        edge = None
-                        toPE, toConnection = None, None
+                        destinations = []
                         for e in self.graph[node].values():
                             if wfGraph == e['DIRECTION'][0] and outputname == e['FROM_CONNECTION']:
                                 toPE = e['DIRECTION'][1]
                                 toConnection = e['TO_CONNECTION']
-                                edge = self.objToNode[wfGraph], self.objToNode[toPE]
-                                break
-                        if edge is not None:
+                                destinations.append((toPE, toConnection))
+                        for (toPE, toConnection) in destinations:
                             # print 'connecting output %s.%s' % (toPE, toConnection)
                             self.connect(fromPE, fromConnection, toPE, toConnection)
-                    self.graph.remove_node(node)
-                    
-
-def draw(graph):
-    '''
-    Creates a representation of the workflow graph in the dot language.
-    '''
-    dot = 'digraph request\n{\nnode [shape=Mrecord];\n'
-    instanceNames = {}
-    counter = 0
-
+            self.graph.remove_nodes_from(toRemove)
+                
+def _create_dot(graph, instanceNames={}, counter=0):
+    dot = ''
     # assign unique names
     for node in graph.graph.nodes():
         try:
-            name = node.getContainedObject().name, counter
+            name = node.getContainedObject().id, counter
         except:
             name = node.getContainedObject().__class__.__name__, counter
         instanceNames[node] = name
         counter += 1
     
     # now add all the nodes and their input and output connections
+    cluster_index = 0
     for node in graph.graph.nodes():
         pe = node.getContainedObject()
+        if isinstance(pe, WorkflowGraph):
+            dot += _create_cluster(pe, cluster_index, instanceNames, counter)
+            cluster_index += 1
+            continue
+            
         name, index = instanceNames[node]
         dot += name + str(index) + "[label=\"{ "
         # add inputs
@@ -242,12 +244,45 @@ def draw(graph):
         pe = node.getContainedObject()
         for edge in graph.graph[node].values():
             if pe == edge['DIRECTION'][0]:
+                if isinstance(pe, WorkflowGraph):
+                    inner_source, source_output = pe.outputmappings[edge['FROM_CONNECTION']]
+                    node = pe.objToNode[inner_source]
+                else:
+                    source_output = edge['FROM_CONNECTION']
                 # pe is the source so look up the connected destination
                 dest = edge['DIRECTION'][1]
-                destNode = graph.objToNode[dest]
-                dot += '%s%s' % instanceNames[node] + ':out_' + edge['FROM_CONNECTION']
+                if isinstance(dest, WorkflowGraph):
+                    inner_dest, dest_input = dest.inputmappings[edge['TO_CONNECTION']]
+                    destNode = dest.objToNode[inner_dest]
+                else:
+                    destNode = graph.objToNode[dest]
+                    dest_input = edge['TO_CONNECTION']
+                dot += '%s%s' % instanceNames[node] + ':out_' + source_output
                 dot += ' -> '
-                dot += '%s%s' % instanceNames[destNode] + ':in_' + edge['TO_CONNECTION'] +';\n'
+                dot += '%s%s' % instanceNames[destNode] + ':in_' + dest_input +';\n'
+    return dot
+                        
+def _create_cluster(graph, index, instanceNames, counter):
+    dot = 'subgraph cluster_%s {\n' % index
+    try:
+        # names for composite PEs are optional
+        dot += 'label = "%s";' % graph.name
+    except:
+        pass
+    dot += 'style=filled;\n'
+    dot += 'color=lightgrey;\n'
+    if index % 2:
+        dot += 'fillcolor=lightgrey;\n'
+    dot += _create_dot(graph, instanceNames, counter)
+    dot += '}\n'
+    return dot
+    
+def draw(graph):
+    '''
+    Creates a representation of the workflow graph in the dot language.
+    '''
+    dot = 'digraph request\n{\nnode [shape=Mrecord, style=filled, fillcolor=white];\n'
+    dot += _create_dot(graph)
     dot += '}\n'
     return dot
 
@@ -261,40 +296,6 @@ def drawDot(graph):
     stdout, stderr = p.communicate(dot.encode('utf-8'))
     return stdout
     
-#Convenience method; if more are needed they should be moved into a new helper module
-def extractAnnotations(fn):
-    '''
-    Extract and return method annotations according to the format::
-    
-        <Description - free text>
-        @param <name> <type> <','> Free text description
-        @return <type>
-    '''
-    ret = {'doc':'', 'params':[], 'return':''}
-    if fn.__doc__ == None: return ret
-    for l in fn.__doc__.splitlines():
-        l = l.strip()
-        if l == '': continue
-        if not l.startswith('@'):
-            ret['doc'] += l
-        else:
-            if l.startswith('@param'):
-                toks = l.split(',')
-                pdescr = ''
-                if len(toks) == 2:
-                    pdescr = toks[1].strip()
-                lhstoks = toks[0].split()
-                pname = lhstoks[1]
-                ptype = ''
-                if len(lhstoks) >= 3:
-                    ptype = lhstoks[2]
-
-                ret['params'].append({'name':pname, 'type':ptype, 'doc':pdescr})
-            elif l.startswith('@return'):
-                toks = l.split()
-                ret['return'] = toks[1].strip()
-    return ret
-
 def getConnectedInputs(node, graph):
     names = []
     for edge in graph.edges(node, data=True):

@@ -13,5 +13,19 @@
 # limitations under the License.
 
 '''
-Tools for the enactment of Dispel4Py graphs as Storm topologies.
+The IPython module for visualising a Dispel4Py graph using Graphviz dot.
+
+For example, to visualise a graph named 'pipeline'::
+
+    from dispel4py.visualisation import display
+    display(pipeline)
+    
 '''
+from dispel4py.workflow_graph import drawDot
+from IPython.core.display import display_png
+
+def display(graph):
+    '''
+    Visualises the input graph.
+    '''
+    display_png(drawDot(graph), raw=True)    

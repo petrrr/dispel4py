@@ -8,17 +8,20 @@ Abstract dataflows described in Dispel4Py can be executed in numerous environmen
 Dependencies 
 ------------
 
-Dispel4Py has been tested with Python versions *2.7.2* and *2.6.6*.
+Dispel4Py has been tested with Python versions *2.7.5*, *2.7.2* and *2.6.6*.
 
-- networkx
+The following Python packages are required to run Dispel4Py:
 
-If using the registry:
+- networkx (https://networkx.github.io/)
 
-- requests
+If using the MPI mapping:
 
-If using Storm as execution engine:
+- mpi4py (http://mpi4py.scipy.org/)
 
-- Python Storm thrift generated code, available here: https://github.com/krux/python-storm
+If using the Storm mapping:
+
+- Python Storm module, available here: https://github.com/apache/incubator-storm/tree/master/storm-core/src/multilang/py, to be placed in directory `resources`.
+- Python Storm thrift generated code, available here: https://github.com/apache/incubator-storm/tree/master/storm-core/src/py
 
 Installation
 ------------
@@ -26,6 +29,13 @@ Installation
 The easiest way to install dispel4py is via pip (https://pypi.python.org/pypi/pip):
 
 `sudo pip install git+git://github.com/akrause2014/dispel4py.git#egg=dispel4py`
+
+Alternatively, download the ZIP or clone this repository to your desktop and add it to the PYTHON_PATH.
+
+Docker image
+------------
+
+A Docker image with the latest Dispel4Py installation is available from the Docker Hub: https://registry.hub.docker.com/u/akrause2014/dispel4py/
 
 Documentation
 -------------
